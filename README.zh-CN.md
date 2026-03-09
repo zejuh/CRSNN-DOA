@@ -2,14 +2,14 @@
 
 ## 启动方式
 
-在项目根目录安装依赖，然后启动本地 demo：
+在项目根目录安装依赖，然后启动本地演示页面：
 
 ```powershell
 pip install -r requirements.txt
 python demo_server.py --open
 ```
 
-如果想用 GPU 或指定端口：
+如果想使用 GPU 或指定端口：
 
 ```powershell
 python demo_server.py --device cuda --port 8000 --open
@@ -40,25 +40,25 @@ python demo_server.py --device cuda --port 8000 --open
 - 综合最强、最鲁棒的 SNN：`ConvRecSNN, lambda=0.3`
 - 更强调效率和稀疏性的折中方案：`FlatLIFSNN, lambda=0.1`
 
-如果只看 noisy 测试下的最优工作点：
+如果只看含噪测试下的最优工作点：
 
 - `ConvRecSNN`: `lambda=0.03`
 - `FlatLIFSNN`: `lambda=1.0`
 
 ### 结果摘要
 
-| 模型 | 选中 lambda | Noisy 准确率 | Noisy MAE (deg) | 说明 |
+| 模型 | 选中 lambda | 含噪准确率 | 含噪角度 MAE (deg) | 说明 |
 |---|---:|---:|---:|---|
-| ConvRecSNN | 0.3 | 0.801 | 2.613 | 主 benchmark 中综合最强 |
+| ConvRecSNN | 0.3 | 0.801 | 2.613 | 主基准实验中综合最强 |
 | FlatLIFSNN | 0.1 | 0.742 | 3.628 | 更省算、更稀疏的 SNN |
-| CRNNBaseline | 0.0 | 0.680 | 3.817 | ANN baseline |
-| GCCPHATLSBaseline | 0.0 | 0.683 | 3.868 | 传统方法 baseline |
+| CRNNBaseline | 0.0 | 0.680 | 3.817 | ANN 基线 |
+| GCCPHATLSBaseline | 0.0 | 0.683 | 3.868 | 传统方法基线 |
 
 ### 研究层面的解释
 
-- `ConvRecSNN` 在 noisy 条件下准确率和角度误差都最好，鲁棒性最强。
-- `FlatLIFSNN` 对 firing-rate regularization 的响应更明显，精度和效率之间的 trade-off 更清楚。
-- 用 clean validation 选出来的 `lambda`，不一定就是 noisy test 下最优的工作点，因此 demo 同时保留了 `val-selected` 和 `noisy-best` 两组模型。
+- `ConvRecSNN` 在含噪条件下准确率和角度误差都最好，鲁棒性最强。
+- `FlatLIFSNN` 对发放率正则化（firing-rate regularization）的响应更明显，精度和效率之间的权衡也更清楚。
+- 用干净验证集选出来的 `lambda`，不一定就是含噪测试集下最优的工作点，因此 demo 同时保留了 `val-selected` 和 `noisy-best` 两组模型。
 
 <details>
 <summary><strong>展开查看详细结论</strong></summary>
@@ -66,31 +66,31 @@ python demo_server.py --device cuda --port 8000 --open
 ### 实验设置
 
 - 音频设置：16 kHz，4 麦克风，0.32 秒窗口
-- 标签空间：36 个 DOA bins
+- 标签空间：36 个 DOA 分箱
 - 特征：log-mel + GCC-PHAT
 - 随机种子：`274, 275, 276`
-- SNN 的 lambda sweep：`0, 0.03, 0.1, 0.3, 1.0`
-- 验证集选型规则：先看 angular MAE，再看 accuracy，SNN 若接近则偏向更低 FR / SynOps
+- SNN 的 lambda 扫描：`0, 0.03, 0.1, 0.3, 1.0`
+- 验证集选型规则：先看角度 MAE，再看准确率；如果 SNN 接近，则偏向更低的 FR / SynOps
 
 需要注意的是：
 
-- validation 是 clean-only
-- noisy robustness 是在 held-out noisy test split 上评估的
-- 所以 validation 选出来的 `lambda`，不一定就是 noisy test 下最优的 `lambda`
+- 验证集是纯干净版本
+- 含噪鲁棒性是在留出的含噪测试集上评估的
+- 所以验证集选出来的 `lambda`，不一定就是含噪测试集下最优的 `lambda`
 
-### 补充 benchmark 观察
+### 补充基准实验观察
 
-- learned models 在 clean split 上已经比较饱和。
-  - 真正拉开差距的是 noisy split，不是 clean split。
-- 传统 baseline 只能算有限竞争。
-  - `GCCPHATLSBaseline` 在 noisy accuracy 上和 `CRNNBaseline` 接近。
+- 学习式模型在干净测试划分上的表现已经比较饱和。
+  - 真正拉开差距的是含噪测试划分，不是干净测试划分。
+- 传统方法基线只能算有限竞争。
+  - `GCCPHATLSBaseline` 在含噪准确率上和 `CRNNBaseline` 接近。
   - 但在角度误差上仍明显落后于 `ConvRecSNN`，也落后于 `FlatLIFSNN`。
 
 ### Lambda 结果
 
 #### ConvRecSNN
 
-Noisy sweep：
+含噪测试扫描：
 
 | lambda | acc_mean | ang_mae_deg_mean | fr_mean | synops_per_sample_mean |
 |---:|---:|---:|---:|---:|
@@ -102,14 +102,14 @@ Noisy sweep：
 
 解释：
 
-- `ConvRecSNN` 在这套设定里对 FR regularization 的敏感度较弱。
-- SynOps 在整个 sweep 里变化很小，基本只是几个百分点的量级。
-- noisy test accuracy 在 `lambda = 0.03` 时最高，但 validation-based selection 选的是 `lambda = 0.3`。
-- 这说明当前的 validation 规则更偏向一个“略微更正则化”的模型，而不是 noisy test 上绝对最优的模型。
+- `ConvRecSNN` 在这套设定里对发放率正则化的敏感度较弱。
+- SynOps 在整个扫描里变化很小，基本只是几个百分点的量级。
+- 含噪测试准确率在 `lambda = 0.03` 时最高，但基于验证集的选型选的是 `lambda = 0.3`。
+- 这说明当前的验证规则更偏向一个“略微更正则化”的模型，而不是含噪测试上绝对最优的模型。
 
 #### FlatLIFSNN
 
-Noisy sweep：
+含噪测试扫描：
 
 | lambda | acc_mean | ang_mae_deg_mean | fr_mean | synops_per_sample_mean |
 |---:|---:|---:|---:|---:|
@@ -125,33 +125,33 @@ Noisy sweep：
 - 从 `lambda = 0.0` 到 `lambda = 1.0`：
   - FR 下降约 `39.5%`
   - SynOps 下降约 `40.0%`
-  - noisy accuracy 提升约 `5.46` 个百分点
-  - noisy MAE 改善约 `0.85 deg`
-- 即便如此，validation-based selection 仍然选的是 `lambda = 0.1`，而不是 `1.0`。
+  - 含噪准确率提升约 `5.46` 个百分点
+  - 含噪角度 MAE 改善约 `0.85 deg`
+- 即便如此，基于验证集的选型仍然选的是 `lambda = 0.1`，而不是 `1.0`。
 
 #### Lambda 结果的含义
 
-最重要的方法学发现是：clean-validation-based selection 和 noisy-test robustness 并不完全一致。
+最重要的方法学发现是：基于干净验证集的选型，与含噪测试鲁棒性并不完全一致。
 
-- 对 `ConvRecSNN`，validation 选的是 `lambda = 0.3`，但 noisy test accuracy 的峰值出现在 `0.03`。
-- 对 `FlatLIFSNN`，validation 选的是 `lambda = 0.1`，但 noisy test 上最强的结果出现在 `1.0`。
+- 对 `ConvRecSNN`，验证集选的是 `lambda = 0.3`，但含噪测试准确率的峰值出现在 `0.03`。
+- 对 `FlatLIFSNN`，验证集选的是 `lambda = 0.1`，但含噪测试上最强的结果出现在 `1.0`。
 
 这说明后续如果继续迭代，应该考虑：
 
-1. 使用 noisy development split 做模型选择，
-2. 用包含 robustness 的 multi-objective validation criterion，
-3. 或者分别保留 clean-priority 和 noise-robustness-priority 两种 operating point。
+1. 使用含噪开发集做模型选择，
+2. 用包含鲁棒性的多目标验证标准，
+3. 或者分别保留“优先干净条件”和“优先含噪鲁棒性”两种工作点。
 
 ### Research Extension
 
 notebook 还补充了两项轻量研究分析：
 
-- Pareto-style best-setting comparison
-- 从 `-10 dB` 到 `20 dB` 的 fixed-SNR robustness sweep
+- 帕累托风格的最优设置比较
+- 从 `-10 dB` 到 `20 dB` 的固定 SNR 鲁棒性测试
 
-#### Pareto-style 效率视角
+#### 帕累托风格的效率视角
 
-| Model | Selected lambda | fp32 model size (KB) | Noisy acc | Noisy MAE |
+| Model | Selected lambda | fp32 模型大小 (KB) | 含噪准确率 | 含噪角度 MAE |
 |---|---:|---:|---:|---:|
 | ConvRecSNN | 0.3 | 774.9 | 0.801 | 2.613 |
 | FlatLIFSNN | 0.1 | 388.6 | 0.742 | 3.628 |
@@ -160,13 +160,13 @@ notebook 还补充了两项轻量研究分析：
 
 解释：
 
-- `CRNNBaseline` 是最大的 learned model，但表现仍不如 `ConvRecSNN`。
-- `FlatLIFSNN` 比 `CRNNBaseline` 提供了更有吸引力的 size-efficiency 点。
-- `ConvRecSNN` 不是最小模型，但它提供了最好的 noisy accuracy。
+- `CRNNBaseline` 是最大的学习式模型，但表现仍不如 `ConvRecSNN`。
+- `FlatLIFSNN` 比 `CRNNBaseline` 提供了更有吸引力的尺寸与效率平衡点。
+- `ConvRecSNN` 不是最小模型，但它提供了最好的含噪准确率。
 
-#### Fixed-SNR robustness sweep
+#### 固定 SNR 鲁棒性测试
 
-这个扩展会用代表性 seed（`274`）和选中的 lambda 重新训练 learned models，然后在 `-10 dB` 到 `20 dB` 的固定 SNR 下评估。
+这个扩展会用代表性随机种子（`274`）和选中的 lambda 重新训练学习式模型，然后在 `-10 dB` 到 `20 dB` 的固定 SNR 下评估。
 
 | Model | Acc @ 0 dB | Acc @ 10 dB | Acc @ 20 dB | Mean acc across all SNRs |
 |---|---:|---:|---:|---:|
@@ -175,7 +175,7 @@ notebook 还补充了两项轻量研究分析：
 | CRNNBaseline | 0.458 | 0.646 | 0.795 | 0.527 |
 | GCCPHATLSBaseline | 0.464 | 0.661 | 0.738 | 0.513 |
 
-在中高 SNR 下，`ConvRecSNN` 也具有最低的 angular error：
+在中高 SNR 下，`ConvRecSNN` 也具有最低的角度误差：
 
 - `2.73 deg` at `10 dB`
 - `2.21 deg` at `15 dB`
@@ -183,16 +183,16 @@ notebook 还补充了两项轻量研究分析：
 
 关键观察：
 
-1. `ConvRecSNN` 在整个 SNR sweep 中最稳健。
+1. `ConvRecSNN` 在整个 SNR 扫描中最稳健。
 2. `FlatLIFSNN` 在非负 SNR 下整体仍优于 `CRNNBaseline`。
-3. `GCCPHATLSBaseline` 在 `0 dB` 附近还能作为参考，但随着 SNR 提升会明显落后于 learned SNN。
+3. `GCCPHATLSBaseline` 在 `0 dB` 附近还能作为参考，但随着 SNR 提升会明显落后于学习式 SNN。
 
 ### 局限性
 
 - 数据仍然是合成的 4 麦克风空间化，不是真实阵列录音。
-- validation 只有 clean，可能会让 lambda selection 偏离 noisy robustness。
-- SynOps 是近似 proxy，不是真实硬件能耗。
-- SNR robustness extension 是单 seed 结果，更适合作为补充证据，而不是主 benchmark 表格本身。
+- 验证集只有干净版本，可能会让 lambda 选型偏离含噪鲁棒性。
+- SynOps 只是近似指标，不是真实硬件能耗。
+- SNR 鲁棒性扩展是单个随机种子的结果，更适合作为补充证据，而不是主基准实验表格本身。
 
 </details>
 
