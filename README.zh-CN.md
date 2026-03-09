@@ -1,7 +1,5 @@
 # Unified DOA Demo and Report
 
-[English](./README.md) | [中文](./README.zh-CN.md)
-
 ## 启动方式
 
 在项目根目录安装依赖，然后启动本地 demo：
@@ -61,6 +59,72 @@ python demo_server.py --device cuda --port 8000 --open
 - `ConvRecSNN` 在 noisy 条件下准确率和角度误差都最好，鲁棒性最强。
 - `FlatLIFSNN` 对 firing-rate regularization 的响应更明显，精度和效率之间的 trade-off 更清楚。
 - 用 clean validation 选出来的 `lambda`，不一定就是 noisy test 下最优的工作点，因此 demo 同时保留了 `val-selected` 和 `noisy-best` 两组模型。
+
+<details>
+<summary><strong>展开查看详细结论</strong></summary>
+
+### 实验设置
+
+- 音频设置：16 kHz，4 麦克风，0.32 秒窗口
+- 标签空间：36 个 DOA bins
+- 特征：log-mel + GCC-PHAT
+- 随机种子：`274, 275, 276`
+- SNN 的 lambda sweep：`0, 0.03, 0.1, 0.3, 1.0`
+- 验证集选型规则：先看 angular MAE，再看 accuracy，SNN 若接近则偏向更低 FR / SynOps
+
+需要注意的是：
+
+- validation 是 clean-only
+- noisy robustness 是在 held-out noisy test split 上评估的
+- 所以 validation 选出来的 `lambda`，不一定就是 noisy test 下最优的 `lambda`
+
+### 主 benchmark 解释
+
+1. `ConvRecSNN` 是这套 benchmark 中 noisy 条件下最强的模型。
+   - 相比 `CRNNBaseline`，noisy accuracy 大约高 `12.2` 个百分点（`0.801` vs `0.680`）。
+   - noisy angular MAE 相对下降约 `31.5%`（`2.61 deg` vs `3.82 deg`）。
+
+2. `FlatLIFSNN` 是效率最好的 learned model。
+   - 它被选中的 setting 只用了 `ConvRecSNN` 大约 `20.6%` 的 SynOps。
+   - 也就是大约 `79.4%` 更低的 SynOps，同时保留了约 `92.6%` 的 noisy accuracy。
+
+3. learned models 在 clean split 上已经比较饱和。
+   - 真正拉开差距的是 noisy split，不是 clean split。
+
+### Lambda 结果
+
+#### ConvRecSNN
+
+- noisy test accuracy 在 `lambda = 0.03` 时最高。
+- 但 validation-based selection 选出来的是 `lambda = 0.3`。
+- 整体上 SynOps 变化不大，说明这个模型对当前 FR regularizer 的敏感度较弱。
+
+#### FlatLIFSNN
+
+- `FlatLIFSNN` 对 `lambda` 的稀疏性响应明显得多。
+- 从 `lambda = 0.0` 到 `lambda = 1.0`：
+  - FR 下降约 `39.5%`
+  - SynOps 下降约 `40.0%`
+  - noisy accuracy 提升约 `5.46` 个百分点
+  - noisy MAE 改善约 `0.85 deg`
+- 但即便如此，validation-based selection 仍然选的是 `lambda = 0.1`，而不是 `1.0`。
+
+### Research Extension
+
+notebook 还补充了一个从 `-10 dB` 到 `20 dB` 的 fixed-SNR robustness sweep。
+
+- `ConvRecSNN` 在整个 SNR sweep 中最稳健。
+- `FlatLIFSNN` 在非负 SNR 下整体仍优于 `CRNNBaseline`。
+- `GCCPHATLSBaseline` 在 `0 dB` 附近还能作为参考，但随着 SNR 变高会明显落后于 learned SNN。
+
+### 局限性
+
+- 数据仍然是合成的 4 麦克风空间化，不是真实阵列录音。
+- validation 只有 clean，可能会让 lambda selection 偏离 noisy robustness。
+- SynOps 是近似 proxy，不是真实硬件能耗。
+- SNR robustness extension 是单 seed 结果，更适合作为补充证据。
+
+</details>
 
 ## 目录说明
 
