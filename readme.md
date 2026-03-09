@@ -80,30 +80,50 @@ Important note:
 - Noisy robustness is evaluated on the held-out noisy test split.
 - Therefore, the validation-selected `lambda` is not always the same `lambda` that maximizes noisy test performance.
 
-### Main benchmark interpretation
+### Additional benchmark observations
 
-1. `ConvRecSNN` is the strongest noisy-condition model in the benchmark.
-   - It exceeds `CRNNBaseline` by about `12.2` percentage points in noisy accuracy (`0.801` vs `0.680`).
-   - It reduces noisy angular MAE by about `31.5%` relative to `CRNNBaseline` (`2.61 deg` vs `3.82 deg`).
-
-2. `FlatLIFSNN` is the most efficient learned model.
-   - Its selected setting uses only about `20.6%` of `ConvRecSNN` SynOps.
-   - That corresponds to about `79.4%` lower SynOps while retaining about `92.6%` of `ConvRecSNN` noisy accuracy.
-
-3. Clean performance is largely saturated for learned models.
-   - The real separation appears in the noisy split rather than the clean split.
+- Clean performance is largely saturated for learned models.
+  - The real separation appears in the noisy split rather than the clean split.
+- The classical baseline is competitive only in a narrow sense.
+  - `GCCPHATLSBaseline` stays close to `CRNNBaseline` on noisy accuracy.
+  - It remains clearly below `ConvRecSNN` and below `FlatLIFSNN` in angular error.
 
 ### Lambda study
 
 #### ConvRecSNN
 
-- Noisy test accuracy peaks at `lambda = 0.03`.
-- Validation-based selection chooses `lambda = 0.3`.
-- SynOps changes are relatively small across the sweep, so this model is only weakly sensitive to the current FR regularizer.
+Noisy sweep:
+
+| lambda | acc_mean | ang_mae_deg_mean | fr_mean | synops_per_sample_mean |
+|---:|---:|---:|---:|---:|
+| 0.00 | 0.798 | 2.691 | 0.0584 | 1.215e6 |
+| 0.03 | 0.845 | 2.592 | 0.0608 | 1.266e6 |
+| 0.10 | 0.804 | 2.831 | 0.0583 | 1.212e6 |
+| 0.30 | 0.801 | 2.613 | 0.0564 | 1.172e6 |
+| 1.00 | 0.823 | 2.610 | 0.0587 | 1.220e6 |
+
+Interpretation:
+
+- `ConvRecSNN` is only weakly sensitive to FR regularization in this setup.
+- SynOps changes are small, on the order of only a few percent across the sweep.
+- Noisy test accuracy is highest at `lambda = 0.03`, but validation-based selection chooses `lambda = 0.3`.
+- This means the current validation criterion prefers a slightly more regularized model than the one that maximizes noisy test accuracy.
 
 #### FlatLIFSNN
 
-- `FlatLIFSNN` shows a much clearer sparsity response to `lambda`.
+Noisy sweep:
+
+| lambda | acc_mean | ang_mae_deg_mean | fr_mean | synops_per_sample_mean |
+|---:|---:|---:|---:|---:|
+| 0.00 | 0.745 | 3.570 | 0.4002 | 2.589e5 |
+| 0.03 | 0.757 | 3.279 | 0.3929 | 2.533e5 |
+| 0.10 | 0.742 | 3.628 | 0.3757 | 2.418e5 |
+| 0.30 | 0.735 | 3.620 | 0.3353 | 2.168e5 |
+| 1.00 | 0.800 | 2.721 | 0.2423 | 1.553e5 |
+
+Interpretation:
+
+- `FlatLIFSNN` shows a much clearer sparsity response to `lambda` than `ConvRecSNN`.
 - From `lambda = 0.0` to `lambda = 1.0`:
   - FR decreases by about `39.5%`
   - SynOps decreases by about `40.0%`
@@ -111,20 +131,70 @@ Important note:
   - Noisy MAE improves by about `0.85 deg`
 - Despite this, validation-based selection chooses `lambda = 0.1` rather than `1.0`.
 
+#### Implication of the lambda results
+
+The most important methodological finding is that clean-validation-based selection does not fully align with noisy-test robustness.
+
+- For `ConvRecSNN`, validation chooses `lambda = 0.3` while noisy test accuracy peaks at `0.03`.
+- For `FlatLIFSNN`, validation chooses `lambda = 0.1` while the strongest noisy test result appears at `1.0`.
+
+This suggests that future iterations should consider:
+
+1. a noisy development split for model selection,
+2. a multi-objective validation criterion that includes robustness, or
+3. separate clean-priority and noise-robustness-priority operating points.
+
 ### Research extension
 
-The notebook also includes a fixed-SNR robustness sweep from `-10 dB` to `20 dB`.
+The notebook also includes:
 
-- `ConvRecSNN` is the most robust model across the SNR sweep.
-- `FlatLIFSNN` remains consistently better than `CRNNBaseline` at non-negative SNRs.
-- `GCCPHATLSBaseline` can be competitive around `0 dB`, but it falls behind the learned SNNs as SNR improves.
+- a Pareto-style best-setting comparison,
+- a fixed-SNR robustness sweep from `-10 dB` to `20 dB`.
+
+#### Pareto-style efficiency view
+
+| Model | Selected lambda | fp32 model size (KB) | Noisy acc | Noisy MAE |
+|---|---:|---:|---:|---:|
+| ConvRecSNN | 0.3 | 774.9 | 0.801 | 2.613 |
+| FlatLIFSNN | 0.1 | 388.6 | 0.742 | 3.628 |
+| CRNNBaseline | 0.0 | 1642.1 | 0.680 | 3.817 |
+| GCCPHATLSBaseline | 0.0 | 0.0 | 0.683 | 3.868 |
+
+Interpretation:
+
+- `CRNNBaseline` is the largest learned model and still underperforms `ConvRecSNN`.
+- `FlatLIFSNN` offers a more attractive size-efficiency point than `CRNNBaseline`.
+- `ConvRecSNN` is not the smallest model, but it offers the best noisy accuracy.
+
+#### Fixed-SNR robustness sweep
+
+This extension retrains the learned models once on a representative seed (`274`) using the selected lambda and evaluates them at fixed SNR values from `-10 dB` to `20 dB`.
+
+| Model | Acc @ 0 dB | Acc @ 10 dB | Acc @ 20 dB | Mean acc across all SNRs |
+|---|---:|---:|---:|---:|
+| ConvRecSNN | 0.596 | 0.839 | 0.930 | 0.660 |
+| FlatLIFSNN | 0.463 | 0.705 | 0.846 | 0.556 |
+| CRNNBaseline | 0.458 | 0.646 | 0.795 | 0.527 |
+| GCCPHATLSBaseline | 0.464 | 0.661 | 0.738 | 0.513 |
+
+At moderate to high SNR, `ConvRecSNN` also has the lowest angular error:
+
+- `2.73 deg` at `10 dB`
+- `2.21 deg` at `15 dB`
+- `1.87 deg` at `20 dB`
+
+Key observations:
+
+1. `ConvRecSNN` is the most robust model across the full SNR sweep.
+2. `FlatLIFSNN` remains consistently better than `CRNNBaseline` at non-negative SNRs.
+3. `GCCPHATLSBaseline` can be competitive around `0 dB`, but it falls behind the learned SNNs as SNR improves.
 
 ### Limitations
 
 - The data is synthetic 4-microphone spatialization rather than real array recordings.
 - Validation is clean-only, which likely biases lambda selection away from noisy robustness.
 - SynOps is an approximate compute proxy, not a hardware-measured energy metric.
-- The SNR robustness extension is single-seed and should be treated as supporting evidence.
+- The SNR robustness extension is single-seed and should be treated as supporting evidence rather than the primary benchmark table.
 
 </details>
 
