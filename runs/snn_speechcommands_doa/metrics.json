@@ -1,0 +1,7 @@
+{
+  "best_val_angle_deg": 45.23708915710449,
+  "best_val_acc": 0.0625,
+  "final_train_loss": 3.7765802145004272,
+  "final_val_acc": 0.0625,
+  "final_val_angle_deg": 45.23708915710449
+}

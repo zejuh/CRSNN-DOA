@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spatial Speech SNN Demo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-noise"></div>
+
+    <main class="page-shell">
+      <section id="overview" class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">ECE 274 / SNN / Spatial Speech</div>
+          <h1>Sound all around. Measured by spikes.</h1>
+          <p class="hero-text">
+            A SpeechCommands utterance is spatialized across a four-microphone array, encoded into log-mel and GCC features,
+            then localized in real time by multiple benchmarked models that you can switch live.
+          </p>
+          <div class="hero-stats">
+            <div class="hero-stat">
+              <span>Selected Model</span>
+              <strong id="metric-model">ConvRecSNN</strong>
+              <div id="metric-model-sub" class="hero-submetric">val-selected / lambda=3e-01</div>
+            </div>
+            <div class="hero-stat">
+              <span>Noisy Accuracy</span>
+              <strong id="metric-acc">80.13%</strong>
+            </div>
+            <div class="hero-stat">
+              <span>Noisy Angular MAE</span>
+              <strong id="metric-angle">2.61 deg</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="experience-shell">
+          <div class="hero-stage">
+            <canvas id="soundstage" width="1440" height="900"></canvas>
+
+            <div class="stage-overlay stage-top">
+              <div class="stage-tag">Ground truth <span id="gt-readout">20 deg</span></div>
+              <div class="stage-tag accent">Prediction <span id="pred-readout">--</span></div>
+            </div>
+
+            <div class="stage-overlay stage-bottom">
+              <div class="stage-story">
+                <div class="eyebrow dim">Live Spatial Field</div>
+                <h2>Sound all around.</h2>
+                <p>
+                  Click anywhere around the listener. The stage fires a ripple from that direction, plays the selected command, and updates the model prediction live.
+                </p>
+              </div>
+
+              <div class="stage-readouts">
+                <div class="readout-card">
+                  <span>Confidence</span>
+                  <strong id="confidence-readout">--</strong>
+                </div>
+                <div class="readout-card">
+                  <span>Absolute error</span>
+                  <strong id="error-readout">--</strong>
+                </div>
+                <div class="readout-card">
+                  <span>Runtime device</span>
+                  <strong id="device-readout">CUDA</strong>
+                </div>
+                <div class="readout-card">
+                  <span>Top bin</span>
+                  <strong id="topbin-readout">--</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside id="live-demo" class="control-dock side-panel">
+            <div class="dock-column model-picker" id="model-picker">
+              <div class="eyebrow">Model</div>
+              <button id="model-select-trigger" class="model-select-trigger" type="button" aria-expanded="false">
+                <span class="model-select-copy">
+                  <span id="model-select-label">ConvRecSNN</span>
+                  <span id="model-select-sub" class="model-select-sub">val-selected / lambda=3e-01</span>
+                </span>
+                <span class="model-select-caret">▾</span>
+              </button>
+              <div id="model-select-menu" class="model-select-menu"></div>
+            </div>
+
+            <div class="dock-column">
+              <div class="eyebrow">Source Prompt</div>
+              <div id="sample-buttons" class="sample-buttons"></div>
+            </div>
+
+            <div class="dock-column dock-slider">
+              <label class="eyebrow" for="angle-slider">Source Angle</label>
+              <input id="angle-slider" type="range" min="-180" max="180" value="20" />
+              <div class="slider-scale">
+                <span>-180 deg</span>
+                <span>0 deg</span>
+                <span>180 deg</span>
+              </div>
+            </div>
+
+            <div class="dock-column dock-bars">
+              <div class="eyebrow">Angular Confidence Field</div>
+              <div id="bars" class="bars"></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="results" class="results-grid">
+        <article class="result-panel narrative-panel">
+          <div class="eyebrow">Research Findings</div>
+          <h2>What the benchmark says.</h2>
+          <p>
+            The underlying benchmark compares SNN, ANN, and classical DOA models under the same 4-microphone synthetic spatialization setup.
+            The demo menu exposes the selected checkpoints directly, while the summary below shows the main research takeaways.
+          </p>
+          <div class="pipeline-list findings-list">
+            <div><strong>Best overall robustness:</strong> ConvRecSNN is the strongest noisy-condition model.</div>
+            <div><strong>Best efficiency trade-off:</strong> FlatLIFSNN keeps much lower SynOps while staying competitive.</div>
+            <div><strong>Classical baseline:</strong> GCC-PHAT + least-squares is useful as a reference, but weaker than the best SNN.</div>
+            <div><strong>Model selection note:</strong> clean-validation lambda is not always the same as noisy-test best lambda.</div>
+          </div>
+        </article>
+
+        <article class="result-panel chart-panel">
+          <div class="eyebrow">Benchmark Charts</div>
+          <h2>Accuracy, error, and lambda trade-offs.</h2>
+          <div class="chart-grid">
+            <div class="chart-card">
+              <div class="chart-card-title">Best-Setting Noisy Accuracy</div>
+              <svg id="chart-best-acc" class="chart-svg" viewBox="0 0 560 300"></svg>
+            </div>
+            <div class="chart-card">
+              <div class="chart-card-title">Best-Setting Noisy Angular MAE</div>
+              <svg id="chart-best-mae" class="chart-svg" viewBox="0 0 560 300"></svg>
+            </div>
+            <div class="chart-card">
+              <div class="chart-card-title">Noisy Accuracy vs Lambda</div>
+              <svg id="chart-lambda-acc" class="chart-svg" viewBox="0 0 560 300"></svg>
+            </div>
+            <div class="chart-card">
+              <div class="chart-card-title">Noisy SynOps vs Lambda</div>
+              <svg id="chart-lambda-synops" class="chart-svg" viewBox="0 0 560 300"></svg>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section id="research-extension" class="result-panel chart-panel extension-panel">
+        <div class="eyebrow">Research Extension</div>
+        <h2>Fixed-SNR robustness sweep.</h2>
+        <p class="benchmark-copy">
+          The notebook also evaluates each best-setting model under controlled noise levels from -10 dB to 20 dB, showing
+          how accuracy and angular error change as the acoustic scene becomes cleaner.
+        </p>
+        <div class="chart-grid extension-grid">
+          <div class="chart-card">
+            <div class="chart-card-title">Accuracy vs SNR</div>
+            <svg id="chart-snr-acc" class="chart-svg" viewBox="0 0 560 300"></svg>
+          </div>
+          <div class="chart-card">
+            <div class="chart-card-title">Angular MAE vs SNR</div>
+            <svg id="chart-snr-mae" class="chart-svg" viewBox="0 0 560 300"></svg>
+          </div>
+        </div>
+      </section>
+
+      <footer class="page-footer">
+        <span>4-mic synthetic DOA benchmark</span>
+        <span class="footer-sep">|</span>
+        <span>SNN vs ANN vs classical baseline</span>
+      </footer>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+  </html>
